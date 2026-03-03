@@ -4,7 +4,7 @@
 
 基于 Kotlin + Jetpack Compose 开发的纯 P2P 局域网聊天应用，采用噪声扩散机制保护通信安全。
 
-[![Android CI](https://github.com/yourusername/noise-diffuse-chat/actions/workflows/android-build.yml/badge.svg)](https://github.com/yourusername/noise-diffuse-chat/actions/workflows/android-build.yml)
+[![Android CI](https://github.com/YOUR_USERNAME/safeland/actions/workflows/android-build.yml/badge.svg)](https://github.com/YOUR_USERNAME/safeland/actions/workflows/android-build.yml)
 
 ## ✨ 核心特性
 
@@ -54,7 +54,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/safeland.git
+git clone https://github.com/YOUR_USERNAME/safeland.git
 cd SafeLand
 
 # 编译 Release APK
