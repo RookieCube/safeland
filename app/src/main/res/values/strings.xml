@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SafeLand</string>
+    <string name="app_description">SafeLand - 端到端加密 P2P 局域网聊天</string>
+
+    <!-- 界面文本 -->
+    <string name="hint_nickname">输入你的昵称</string>
+    <string name="hint_message">输入消息…</string>
+    <string name="btn_enter">进入聊天室</string>
+    <string name="btn_send">发送</string>
+    <string name="btn_attach">添加附件</string>
+
+    <!-- 角色 -->
+    <string name="role_host">👑 HOST</string>
+    <string name="role_client">普通用户</string>
+
+    <!-- 状态 -->
+    <string name="status_online">在线</string>
+    <string name="status_offline">离线</string>
+    <string name="status_away">离开</string>
+    <string name="status_sending">发送中</string>
+    <string name="status_delivered">已送达</string>
+    <string name="status_read">已读</string>
+
+    <!-- 菜单 -->
+    <string name="menu_users">在线用户</string>
+    <string name="menu_blacklist">黑名单</string>
+    <string name="menu_settings">设置</string>
+    <string name="menu_network">网络状态</string>
+
+    <!-- 安全提示 -->
+    <string name="security_features">✓ X25519 密钥交换  ✓ ChaCha20-Poly1305 加密  ✓ 噪声扩散保护</string>
+
+    <!-- 错误信息 -->
+    <string name="error_network">网络连接失败</string>
+    <string name="error_encryption">加密错误</string>
+    <string name="error_host_verification">HOST验证失败</string>
+</resources>
