@@ -29,6 +29,7 @@ Thumbs.db
 
 # Log files
 *.log
+wget-log
 
 # Android Studio Navigation editor temp files
 .navigation/
