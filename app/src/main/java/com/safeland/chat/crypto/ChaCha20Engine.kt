@@ -110,7 +110,8 @@ object ChaCha20Engine {
         val nonce = ByteArray(24)
         secureRandom.nextBytes(nonce)
 
-        val cipher = org.bouncycastle.crypto.engines.XChaCha20Engine()
+        // Use ChaCha7539Engine which supports 24-byte nonces (XChaCha20)
+        val cipher = ChaCha7539Engine()
         val params = ParametersWithIV(KeyParameter(key), nonce)
         cipher.init(true, params)
 

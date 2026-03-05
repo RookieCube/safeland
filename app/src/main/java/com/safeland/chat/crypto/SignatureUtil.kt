@@ -94,7 +94,8 @@ object SignatureUtil {
         length: Int
     ): ByteArray {
         // Extract
-        val prk = hmacSha256Raw(salt.ifEmpty { ByteArray(32) { 0 } }, ikm)
+        val saltToUse = if (salt.isEmpty()) ByteArray(32) { 0 } else salt
+        val prk = hmacSha256Raw(saltToUse, ikm)
 
         // Expand
         val result = ByteArray(length)

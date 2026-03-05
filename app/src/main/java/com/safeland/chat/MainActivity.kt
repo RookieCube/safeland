@@ -91,10 +91,10 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                    LoginScreen { nickname, asHost ->
+                    LoginScreen(onLogin = { nickname: String, asHost: Boolean ->
                         login(nickname, asHost)
                         isLoggedIn = true
-                    }
+                    })
                 }
             }
         }
