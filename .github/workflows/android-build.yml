@@ -66,16 +66,3 @@ jobs:
         name: test-reports
         path: app/build/reports/tests/
         retention-days: 7
-
-  # 可选：代码质量检查
-  code-quality:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Run Detekt
-      uses: natiginfo/action-detekt-all@1.23.4
-      with:
-        args: --config detekt.yml
-      continue-on-error: true
