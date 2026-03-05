@@ -50,8 +50,14 @@ object ValidityCheck {
         }
 
         // 计算最后一个字节需要的值
-        val lastByteNeeded = (needed - tailSumWithoutLast + MODULUS) % MODULUS
-        tail[tailLength - 1] = if (lastByteNeeded == 0) TARGET_REMAINDER.toByte() else lastByteNeeded.toByte()
+        // 公式: (tailSumWithoutLast + lastByte) % 173 == needed
+        // 所以: lastByte = (needed - tailSumWithoutLast) mod 173
+        // 注意：如果结果为0，我们需要173（即MODULUS），因为0对总和没有贡献
+        var lastByteNeeded = (needed - tailSumWithoutLast) % MODULUS
+        if (lastByteNeeded < 0) lastByteNeeded += MODULUS
+        if (lastByteNeeded == 0) lastByteNeeded = MODULUS  // 需要173才能满足条件
+
+        tail[tailLength - 1] = lastByteNeeded.toByte()
 
         return tail
     }
