@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.safeland.chat.model.Message
@@ -377,9 +378,4 @@ private fun MessageStatusIcon(
             }
         }
     }
-}
-
-// 扩展函数：添加旋转修饰符
-fun Modifier.rotate(degrees: Float) = this.graphicsLayer {
-    rotationZ = degrees
 }

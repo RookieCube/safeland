@@ -71,6 +71,13 @@ class PacketBuilder(
     }
 
     /**
+     * 创建单个有效包（简化接口）
+     */
+    fun createPacket(type: String, content: String): Packet {
+        return createValidPacket(type, content)
+    }
+
+    /**
      * 创建单个有效包
      */
     fun createValidPacket(type: String, content: String): Packet {

@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -282,11 +283,11 @@ private fun DrawScope.drawEncryptionMatrix(
             }
 
             // 旋转效果
-            val rotatedX = centerX + (x - centerX) * cos(rotation * PI / 180) -
-                    (y - centerY) * sin(rotation * PI / 180)
-            val rotatedY = centerY + (x - centerX) * sin(rotation * PI / 180) +
-                    (y - centerY) * cos(rotation * PI / 180)
-
+                            val rotationRad = (rotation * PI / 180).toFloat()
+                            val rotatedX = centerX + (x - centerX) * cos(rotationRad) -
+                                    (y - centerY) * sin(rotationRad)
+                            val rotatedY = centerY + (x - centerX) * sin(rotationRad) +
+                                    (y - centerY) * cos(rotationRad)
             val color = if (isEncrypting) {
                 Color.Green.copy(alpha = alpha)
             } else {
