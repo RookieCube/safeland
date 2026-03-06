@@ -37,8 +37,14 @@ fun MainChatScreen(
     isHost: Boolean,
     roomName: String,
     localIp: String,
+    networkLatency: Long? = null,
     onSendMessage: (String) -> Unit,
     onSendImage: () -> Unit,
+    onSettingsClick: () -> Unit = {},
+    onBlacklistClick: () -> Unit = {},
+    onNetworkStatusClick: () -> Unit = {},
+    onLogout: () -> Unit = {},
+    onUserClick: (User) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -52,22 +58,37 @@ fun MainChatScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            UserDrawer(
-                currentUser = currentUser,
-                users = users,
-                onlineCount = users.count { it.status == com.safeland.chat.model.UserStatus.ONLINE },
-                isHost = isHost,
-                onUserClick = { /* TODO */ },
-                onSettingsClick = { /* TODO */ },
-                onBlacklistClick = { /* TODO */ },
-                onNetworkStatusClick = { /* TODO */ }
-            )
-        }
-    ) {
-        Scaffold(
+                    ModalNavigationDrawer(
+
+                    drawerState = drawerState,
+
+                    drawerContent = {
+
+                        UserDrawer(
+
+                            currentUser = currentUser,
+
+                            users = users,
+
+                            onlineCount = users.count { it.status == com.safeland.chat.model.UserStatus.ONLINE },
+
+                            isHost = isHost,
+
+                            onUserClick = onUserClick,
+
+                            onSettingsClick = onSettingsClick,
+
+                            onBlacklistClick = onBlacklistClick,
+
+                            onNetworkStatusClick = onNetworkStatusClick,
+
+                            onLogout = onLogout
+
+                        )
+
+                    }
+
+                ) {        Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
@@ -126,20 +147,26 @@ fun MainChatScreen(
                 )
             }
         ) { paddingValues ->
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+            Box(
+                modifier = modifier.fillMaxSize()
             ) {
-                // 网络状态提示
-                if (!isConnected) {
-                    NetworkStatusCard(
-                        isConnected = false,
-                        localIp = localIp,
-                        port = 1338,
-                        latency = null
-                    )
-                }
+                // 扩散背景动画
+                com.safeland.chat.ui.animations.NoiseDiffuseBackground()
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    // 网络状态提示
+                    if (!isConnected) {
+                        NetworkStatusCard(
+                            isConnected = false,
+                            localIp = localIp,
+                            port = 1338,
+                            latency = networkLatency
+                        )
+                    }
 
                 // 消息列表
                 LazyColumn(
@@ -166,6 +193,7 @@ fun MainChatScreen(
                                 message = message,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                        }
                         }
                     }
                 }
@@ -214,7 +242,7 @@ fun LoginScreen(
 
             // 标题
             Text(
-                text = "Noise-Diffuse Chat",
+                text = "SafeLand",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary

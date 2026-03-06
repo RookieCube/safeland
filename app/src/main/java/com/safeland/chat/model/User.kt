@@ -95,3 +95,18 @@ data class LocalUserSession(
         return result
     }
 }
+
+/**
+ * 聊天室数据类
+ */
+@Immutable
+data class ChatRoom(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val hostName: String,
+    val hostIp: String,
+    val userCount: Int = 0,
+    val hasPassword: Boolean = false,
+    val signalStrength: Int = 100,  // 信号强度 0-100
+    val createdAt: Long = System.currentTimeMillis()
+)

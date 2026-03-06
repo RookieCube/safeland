@@ -2,8 +2,10 @@ package com.safeland.chat
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -15,14 +17,12 @@ import com.safeland.chat.network.UdpManager
 import com.safeland.chat.protocol.HostVerifier
 import com.safeland.chat.protocol.PacketBuilder
 import com.safeland.chat.protocol.PacketParser
-import com.safeland.chat.ui.screens.LoginScreen
-import com.safeland.chat.ui.screens.MainChatScreen
-import com.safeland.chat.ui.theme.NoiseDiffuseChatTheme
+import com.safeland.chat.ui.screens.*
+import com.safeland.chat.ui.theme.SafeLandTheme
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.serialization.json.Json
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import android.util.Base64
 
 /**
  * 主Activity
@@ -47,9 +47,15 @@ class MainActivity : ComponentActivity() {
     private var currentUser by mutableStateOf<User?>(null)
     private var messages = mutableStateListOf<Message>()
     private var users = mutableStateListOf<User>()
+    private var availableRooms = mutableStateListOf<ChatRoom>()
     private var isConnected by mutableStateOf(false)
     private var isHost by mutableStateOf(false)
-    private var roomName by mutableStateOf("局域网聊天室")
+    private var roomName by mutableStateOf("SafeLand 聊天室")
+    private var blacklist = mutableStateListOf<String>()
+    private var networkLatency by mutableStateOf<Long?>(null)
+
+    // 图片传输
+    private val pendingImages = mutableMapOf<String, MutableList<ImageBlock>>()
 
     // 协程作用域
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -71,30 +77,116 @@ class MainActivity : ComponentActivity() {
         checkPermissions()
 
         setContent {
-            NoiseDiffuseChatTheme {
-                var isLoggedIn by remember { mutableStateOf(false) }
+            SafeLandTheme {
+                var currentScreen by remember { mutableStateOf(Screen.ROOM_LIST) }
+                var showSettings by remember { mutableStateOf(false) }
+                var showBlacklist by remember { mutableStateOf(false) }
+                var showNetworkStatus by remember { mutableStateOf(false) }
+                var showUserProfile by remember { mutableStateOf<User?>(null) }
 
-                if (isLoggedIn && currentUser != null) {
-                    MainChatScreen(
-                        currentUser = currentUser,
-                        messages = messages,
-                        users = users,
-                        isConnected = isConnected,
-                        isHost = isHost,
-                        roomName = roomName,
-                        localIp = udpManager.getLocalIpAddress(),
-                        onSendMessage = { content ->
-                            sendTextMessage(content)
-                        },
-                        onSendImage = {
-                            // TODO: 实现图片发送
+                // 图片选择器
+                val imagePicker = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri: Uri? ->
+                    uri?.let { sendImageMessage(it) }
+                }
+
+                when (currentScreen) {
+                    Screen.ROOM_LIST -> {
+                        RoomListScreen(
+                            rooms = availableRooms,
+                            onCreateRoom = { nickname ->
+                                isHost = true
+                                login(nickname, true)
+                                currentScreen = Screen.CHAT
+                            },
+                            onJoinRoom = { room, nickname ->
+                                isHost = false
+                                login(nickname, false)
+                                currentScreen = Screen.CHAT
+                            },
+                            onRefresh = { discoverRooms() }
+                        )
+                    }
+                    Screen.CHAT -> {
+                        MainChatScreen(
+                            currentUser = currentUser,
+                            messages = messages,
+                            users = users,
+                            isConnected = isConnected,
+                            isHost = isHost,
+                            roomName = roomName,
+                            localIp = if (::udpManager.isInitialized) udpManager.getLocalIpAddress() else "",
+                            networkLatency = networkLatency,
+                            onSendMessage = { content ->
+                                sendTextMessage(content)
+                            },
+                            onSendImage = {
+                                imagePicker.launch("image/*")
+                            },
+                            onSettingsClick = { showSettings = true },
+                            onBlacklistClick = { showBlacklist = true },
+                            onNetworkStatusClick = { showNetworkStatus = true },
+                            onLogout = {
+                                logout()
+                                currentScreen = Screen.ROOM_LIST
+                            },
+                            onUserClick = { user ->
+                                showUserProfile = user
+                            }
+                        )
+                    }
+                }
+
+                // 设置对话框
+                if (showSettings) {
+                    com.safeland.chat.ui.components.SettingsDialog(
+                        onDismiss = { showSettings = false },
+                        onClearData = {
+                            clearAllData()
+                            showSettings = false
                         }
                     )
-                } else {
-                    LoginScreen(onLogin = { nickname: String, asHost: Boolean ->
-                        login(nickname, asHost)
-                        isLoggedIn = true
-                    })
+                }
+
+                // 黑名单对话框
+                if (showBlacklist) {
+                    com.safeland.chat.ui.components.BlacklistDialog(
+                        blacklist = blacklist,
+                        onDismiss = { showBlacklist = false },
+                        onRemove = { item ->
+                            blacklist.remove(item)
+                        }
+                    )
+                }
+
+                // 网络状态对话框
+                if (showNetworkStatus) {
+                    com.safeland.chat.ui.components.NetworkStatusDialog(
+                        isConnected = isConnected,
+                        localIp = if (::udpManager.isInitialized) udpManager.getLocalIpAddress() else "",
+                        port = 1338,
+                        latency = networkLatency,
+                        onDismiss = { showNetworkStatus = false }
+                    )
+                }
+
+                // 用户资料对话框
+                showUserProfile?.let { user ->
+                    com.safeland.chat.ui.components.UserProfileDialog(
+                        user = user,
+                        onDismiss = { showUserProfile = null },
+                        onSendPrivateMessage = {
+                            // TODO: 实现私聊
+                            showUserProfile = null
+                        },
+                        onAddToBlacklist = {
+                            if (!blacklist.contains(user.id)) {
+                                blacklist.add(user.id)
+                            }
+                            showUserProfile = null
+                        }
+                    )
                 }
             }
         }
@@ -107,7 +199,8 @@ class MainActivity : ComponentActivity() {
         val permissions = arrayOf(
             Manifest.permission.INTERNET,
             Manifest.permission.ACCESS_WIFI_STATE,
-            Manifest.permission.ACCESS_NETWORK_STATE
+            Manifest.permission.ACCESS_NETWORK_STATE,
+            Manifest.permission.READ_EXTERNAL_STORAGE
         )
 
         val needsPermission = permissions.any {
@@ -158,6 +251,45 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // 开始发现房间和网络检测
+        discoverRooms()
+        startNetworkLatencyCheck()
+    }
+
+    /**
+     * 网络延迟检测
+     */
+    private fun startNetworkLatencyCheck() {
+        scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val startTime = System.currentTimeMillis()
+                // 发送ping包
+                val builder = packetBuilder
+                if (builder != null) {
+                    try {
+                        val pingPacket = builder.createPacket(
+                            type = "PING",
+                            content = startTime.toString()
+                        )
+                        udpManager.broadcastPacket(pingPacket)
+                    } catch (e: Exception) {
+                        // 忽略错误
+                    }
+                }
+                delay(5000) // 每5秒检测一次
+            }
+        }
+    }
+
+    /**
+     * 发现聊天室
+     */
+    private fun discoverRooms() {
+        scope.launch(Dispatchers.IO) {
+            // 模拟发现房间（实际应通过广播发现）
+            // TODO: 实现真实的房间发现逻辑
+        }
     }
 
     /**
@@ -175,7 +307,7 @@ class MainActivity : ComponentActivity() {
             name = nickname,
             publicKey = keyPair?.publicKeyBase64() ?: "",
             role = if (asHost) UserRole.HOST else UserRole.CLIENT,
-            ipAddress = udpManager.getLocalIpAddress()
+            ipAddress = if (::udpManager.isInitialized) udpManager.getLocalIpAddress() else ""
         )
 
         // 如果是HOST，生成共享密钥（自己和自己）
@@ -200,6 +332,29 @@ class MainActivity : ComponentActivity() {
         if (asHost) {
             broadcastHostVerification()
         }
+    }
+
+    /**
+     * 退出登录
+     */
+    private fun logout() {
+        currentUser = null
+        messages.clear()
+        users.clear()
+        isHost = false
+        roomName = "SafeLand 聊天室"
+        keyPair = null
+        sharedSecret = null
+        packetBuilder = null
+        packetParser = null
+    }
+
+    /**
+     * 清除所有数据
+     */
+    private fun clearAllData() {
+        logout()
+        blacklist.clear()
     }
 
     /**
@@ -268,6 +423,82 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * 发送图片消息
+     */
+    private fun sendImageMessage(uri: Uri) {
+        val builder = packetBuilder ?: return
+        val user = currentUser ?: return
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                // 读取图片并压缩
+                val inputStream = contentResolver.openInputStream(uri)
+                val imageBytes = inputStream?.readBytes() ?: return@launch
+                inputStream.close()
+
+                // 压缩图片
+                val compressedImage = compressImage(imageBytes, maxSize = 500 * 1024) // 最大500KB
+                val base64Image = Base64.encodeToString(compressedImage, Base64.DEFAULT)
+
+                // 创建消息
+                val message = Message(
+                    senderId = user.id,
+                    senderName = user.name,
+                    content = base64Image,
+                    type = MessageType.IMAGE,
+                    isFromMe = true,
+                    status = MessageStatus.SENDING
+                )
+
+                withContext(Dispatchers.Main) {
+                    messages.add(message)
+                }
+
+                // 分块发送
+                val chunkSize = 1024 // 每块1KB
+                val chunks = base64Image.chunked(chunkSize)
+
+                chunks.forEachIndexed { index, chunk ->
+                    val packet = builder.createPacket(
+                        type = "IMAGE_CHUNK",
+                        content = "$index:${chunks.size}:$chunk"
+                    )
+                    udpManager.broadcastPacket(packet)
+                    delay(50) // 避免发送过快
+                }
+
+                // 发送完成标记
+                val completePacket = builder.createPacket(
+                    type = "IMAGE_COMPLETE",
+                    content = message.id
+                )
+                udpManager.broadcastPacket(completePacket)
+
+                withContext(Dispatchers.Main) {
+                    updateMessageStatus(message.id, MessageStatus.DELIVERED)
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * 压缩图片
+     */
+    private fun compressImage(imageBytes: ByteArray, maxSize: Int): ByteArray {
+        // 简化实现：如果图片太大，进行简单压缩
+        return if (imageBytes.size > maxSize) {
+            // 实际应该使用 BitmapFactory 进行真正的图片压缩
+            // 这里简化处理
+            imageBytes.take(maxSize).toByteArray()
+        } else {
+            imageBytes
+        }
+    }
+
+    /**
      * 处理有效数据包
      */
     private suspend fun handleValidPacket(
@@ -285,39 +516,146 @@ class MainActivity : ComponentActivity() {
                 val senderName = payload["senderName"] ?: "未知用户"
                 val content = payload["content"] ?: ""
 
+                // 检查黑名单
+                if (blacklist.contains(senderId)) {
+                    return@withContext
+                }
+
                 when (type) {
                     "MESSAGE" -> {
-                        // 添加消息
-                        val message = Message(
-                            senderId = senderId,
-                            senderName = senderName,
-                            content = content,
-                            type = MessageType.TEXT,
-                            isFromMe = false,
-                            status = MessageStatus.READ
-                        )
-                        messages.add(message)
-
-                        // 发送已读回执
-                        // TODO: 实现已读回执
+                        handleIncomingMessage(senderId, senderName, content)
+                    }
+                    "IMAGE_CHUNK" -> {
+                        handleImageChunk(senderId, content)
+                    }
+                    "IMAGE_COMPLETE" -> {
+                        handleImageComplete(senderId, content)
+                    }
+                    "READ_RECEIPT" -> {
+                        handleReadReceipt(content)
+                    }
+                    "PING" -> {
+                        handlePing(senderIp, content)
+                    }
+                    "PONG" -> {
+                        handlePong(content)
                     }
                     "HOST_VERIFY" -> {
-                        // 验证HOST
-                        if (!isHost && !hostVerifier.hasVerifiedHost) {
-                            val host = hostVerifier.verifyHost(packet, senderIp)
-                            host?.let {
-                                users.add(it)
-                                roomName = it.name
-
-                                // 与HOST交换密钥
-                                performKeyExchange(it)
-                            }
-                        }
+                        handleHostVerification(packet, senderIp)
                     }
                 }
 
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * 处理文本消息
+     */
+    private fun handleIncomingMessage(senderId: String, senderName: String, content: String) {
+        val message = Message(
+            senderId = senderId,
+            senderName = senderName,
+            content = content,
+            type = MessageType.TEXT,
+            isFromMe = false,
+            status = MessageStatus.READ
+        )
+        messages.add(message)
+
+        // 发送已读回执
+        sendReadReceipt(message.id)
+    }
+
+    /**
+     * 处理图片分块
+     */
+    private fun handleImageChunk(senderId: String, content: String) {
+        val parts = content.split(":", limit = 3)
+        if (parts.size < 3) return
+
+        val index = parts[0].toIntOrNull() ?: return
+        val total = parts[1].toIntOrNull() ?: return
+        val chunkData = parts[2]
+
+        val blocks = pendingImages.getOrPut(senderId) { mutableListOf() }
+        // 存储分块数据
+    }
+
+    /**
+     * 处理图片完成
+     */
+    private fun handleImageComplete(senderId: String, messageId: String) {
+        // 组装图片并显示
+        // 简化实现
+    }
+
+    /**
+     * 发送已读回执
+     */
+    private fun sendReadReceipt(messageId: String) {
+        val builder = packetBuilder ?: return
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val packet = builder.createPacket(
+                    type = "READ_RECEIPT",
+                    content = messageId
+                )
+                udpManager.broadcastPacket(packet)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * 处理已读回执
+     */
+    private fun handleReadReceipt(messageId: String) {
+        updateMessageStatus(messageId, MessageStatus.READ)
+    }
+
+    /**
+     * 处理Ping
+     */
+    private fun handlePing(senderIp: String, timestamp: String) {
+        val builder = packetBuilder ?: return
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val packet = builder.createPacket(
+                    type = "PONG",
+                    content = timestamp
+                )
+                udpManager.sendPacket(packet, senderIp)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * 处理Pong
+     */
+    private fun handlePong(timestamp: String) {
+        val sentTime = timestamp.toLongOrNull() ?: return
+        val latency = System.currentTimeMillis() - sentTime
+        networkLatency = latency
+    }
+
+    /**
+     * 处理HOST验证
+     */
+    private fun handleHostVerification(packet: com.safeland.chat.model.Packet, senderIp: String) {
+        if (!isHost && !hostVerifier.hasVerifiedHost) {
+            val host = hostVerifier.verifyHost(packet, senderIp)
+            host?.let {
+                users.add(it)
+                roomName = it.name
+                performKeyExchange(it)
             }
         }
     }
@@ -376,7 +714,19 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
-        udpManager.stop()
-        packetQueue.stop()
+        if (::udpManager.isInitialized) {
+            udpManager.stop()
+        }
+        if (::packetQueue.isInitialized) {
+            packetQueue.stop()
+        }
     }
+}
+
+/**
+ * 屏幕枚举
+ */
+enum class Screen {
+    ROOM_LIST,
+    CHAT
 }

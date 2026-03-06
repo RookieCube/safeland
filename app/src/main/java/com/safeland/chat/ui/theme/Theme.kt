@@ -70,7 +70,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun NoiseDiffuseChatTheme(
+fun SafeLandTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,  // 禁用动态颜色以保持Telegram风格
     content: @Composable () -> Unit

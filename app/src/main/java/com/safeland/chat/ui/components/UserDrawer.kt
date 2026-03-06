@@ -35,6 +35,7 @@ fun UserDrawer(
     onSettingsClick: () -> Unit,
     onBlacklistClick: () -> Unit,
     onNetworkStatusClick: () -> Unit,
+    onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     ModalDrawerSheet(modifier = modifier) {
@@ -57,11 +58,24 @@ fun UserDrawer(
         )
 
         LazyColumn {
-            items(users) { user ->
-                UserListItem(
-                    user = user,
-                    onClick = { onUserClick(user) }
-                )
+            items(
+                items = users,
+                key = { it.id }
+            ) { user ->
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = true,
+                    enter = androidx.compose.animation.fadeIn(
+                        animationSpec = androidx.compose.animation.core.tween(300)
+                    ) + androidx.compose.animation.scaleIn(
+                        initialScale = 0.9f,
+                        animationSpec = androidx.compose.animation.core.tween(300)
+                    )
+                ) {
+                    UserListItem(
+                        user = user,
+                        onClick = { onUserClick(user) }
+                    )
+                }
             }
         }
 
@@ -88,9 +102,18 @@ fun UserDrawer(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        // 退出登录
+        DrawerMenuItem(
+            icon = Icons.Default.ExitToApp,
+            label = "退出登录",
+            onClick = onLogout
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
         // 版本信息
         Text(
-            text = "Noise-Diffuse Chat v1.0",
+            text = "SafeLand v1.0",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.padding(16.dp)

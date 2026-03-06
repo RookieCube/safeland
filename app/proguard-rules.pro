@@ -1,7 +1,7 @@
-# ProGuard rules for NoiseDiffuseChat
+# ProGuard rules for SafeLand
 
 # Keep model classes for serialization
--keepclassmembers class com.noisediffuse.chat.model.** {
+-keepclassmembers class com.safeland.chat.model.** {
     *;
 }
 
